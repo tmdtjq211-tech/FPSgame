@@ -188,7 +188,6 @@
         <div id="scanlines"></div>
         <div id="blood-overlay"></div>
 
-        <!-- 1. MAIN MENU -->
         <div id="main-menu" class="overlay">
             <div class="main-title">OLYMPUS</div>
             <div class="sub-title">전술 미로 침투 작전</div>
@@ -198,7 +197,6 @@
             </div>
         </div>
 
-        <!-- HOW TO PLAY -->
         <div id="how-to-play" class="overlay hidden">
             <h2 style="margin-bottom:16px;">전술 매뉴얼</h2>
             <div class="grid-container" style="max-width:600px; text-align:left; padding:20px; font-size:13px; line-height:1.7;">
@@ -217,7 +215,6 @@
             <button class="btn" style="margin-top:16px;" onclick="hideHowToPlay()">← 돌아가기</button>
         </div>
 
-        <!-- 2. MAP SELECT -->
         <div id="map-select" class="overlay hidden">
             <h2 style="margin-bottom:6px;">작전 지역 선택</h2>
             <div class="grid-container">
@@ -237,7 +234,6 @@
             <button class="btn" style="margin-top:20px;" onclick="location.reload()">← 메인으로</button>
         </div>
 
-        <!-- 3. HERO SELECT -->
         <div id="char-select" class="overlay hidden">
             <h2 style="margin-bottom:6px;">요원 선택 (1/2)</h2>
             <p style="color:var(--cyan); font-size:12px; margin-bottom:10px;">캐릭터의 고유 스킬과 시너지 무기를 확인하세요.</p>
@@ -245,7 +241,6 @@
             <button class="btn" style="margin-top:20px;" onclick="showMapSelect()">← 이전 단계</button>
         </div>
 
-        <!-- 4. WEAPON SELECT -->
         <div id="weapon-select" class="overlay hidden">
             <h2 style="margin-bottom:6px;">무기 선택 (2/2)</h2>
             <p id="synergy-info" style="color:var(--gold); font-size:13px; font-weight:bold; margin-bottom:10px;"></p>
@@ -253,7 +248,6 @@
             <button class="btn" style="margin-top:20px;" onclick="document.getElementById('weapon-select').classList.add('hidden'); document.getElementById('char-select').classList.remove('hidden');">← 요원 다시 선택</button>
         </div>
 
-        <!-- IN-GAME HUD -->
         <div id="game-ui" class="hidden">
             <div id="controls-info" style="position: absolute; top: 16px; left: 16px; z-index: 10; font-size: 12px; line-height: 1.5; color: #fff; text-shadow: 1px 1px 2px #000;">
                 <b>WASD</b> 이동 &nbsp;<b>SPC</b> 점프 &nbsp;<b>C</b> 앉기<br>
@@ -299,11 +293,9 @@
                 </div>
             </div>
 
-            <!-- 미니맵(레이더) -->
             <div id="minimap-container"><canvas id="minimap" width="130" height="130"></canvas></div>
         </div>
 
-        <!-- MOBILE CONTROLS -->
         <div id="mobile-controls">
             <div class="touch-zone" id="touch-look-zone"></div>
             <div id="joystick-zone"><div id="joystick-knob"></div></div>
@@ -333,8 +325,24 @@
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
         // 모바일 감지
-        const isMobile = window.innerWidth <= 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        let isMobile = window.innerWidth <= 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
         if (isMobile) document.body.classList.add('is-mobile');
+
+        // ==== 블루투스 마우스 연결 시 즉시 PC 모드로 전환 ====
+        window.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse' && isMobile) {
+                isMobile = false;
+                document.body.classList.remove('is-mobile'); // CSS 모바일 레이아웃 해제
+                document.getElementById('mobile-controls').style.display = 'none'; // 터치 패드 숨김
+                
+                // 잠금 화면(클릭하여 작전 개시)을 강제로 다시 띄워서 PointerLock을 활성화할 수 있게 함
+                const lockScreen = document.getElementById('lock-screen');
+                lockScreen.style.display = 'flex';
+                lockScreen.classList.remove('hidden');
+                
+                UI.log("🖱️ 블루투스 마우스 연결됨: PC 조작 모드 활성화");
+            }
+        });
 
         // ============================================================
         // DATA: WEAPONS & CHARACTERS
@@ -347,7 +355,6 @@
         };
         const SECONDARY_WEAPON = { name:'전술 권총', type:'pistol', fireRate: 400, dmgMulti: 0.6, speed: 200, count: 1, color: 0xcccccc };
 
-        // [조정] 캐릭터들의 기본 이동 속도를 절반으로 줄여 조작의 현실감과 정확도를 높임
         const CHARACTERS = {
             Ares: {
                 name: "아레스", signatureWeapon: 'shotgun', hp:150, speed:45, color:"#ff4444", atk:120, def:120, skillMax: 5, ultMax: 25,
@@ -405,14 +412,13 @@
                     
                     let dashDir = new THREE.Vector3();
                     if(isMobile) {
-                        dashDir.set(joyX, 0, -joyY); // 정상 Y 좌표계에 맞게 수정 (-joyY가 전진)
+                        dashDir.set(joyX, 0, -joyY); 
                     } else {
                         dashDir.set(Number(moveRight)-Number(moveLeft), 0, Number(moveBackward)-Number(moveForward));
                     }
-                    if(dashDir.lengthSq() === 0) dashDir.z = -1; // 입력 없으면 기본 앞으로 대시
+                    if(dashDir.lengthSq() === 0) dashDir.z = -1; 
                     dashDir.normalize();
                     
-                    // 기본 속도를 줄였기 때문에 대시의 반동을 1500으로 높여 쾌감 유지
                     velocity.x += dashDir.x * 1500; 
                     velocity.z += dashDir.z * 1500;
                     UI.log("💨 헤르메스 쾌속 대시!"); playSound('powerup');
@@ -756,7 +762,6 @@
 
             if (isMobile) {
                 document.getElementById('mobile-controls').style.display = 'block';
-                // 풀스크린 요청 시도
                 try {
                     if (document.documentElement.requestFullscreen) {
                         await document.documentElement.requestFullscreen();
@@ -922,11 +927,9 @@
         function onMouseDown(e) { if(isMobile) return; if(e.button===0) isShootingAction=true; else if(e.button===2) performSkill(); }
         function onMouseUp(e) { if(isMobile) return; if(e.button===0) isShootingAction=false; }
 
-        // ── 강제 CSS 회전을 복구함에 따라 터치 좌표 변환 매핑도 90도 회전 시킴 ──
         function getTouchXY(touch) {
             const isPortrait = window.innerHeight > window.innerWidth;
             if (isPortrait) {
-                // 화면이 강제로 돌아가 있으므로 물리적 터치 X/Y를 게임 세계관에 맞게 스왑하고 부호를 맞춰줌
                 return { x: touch.clientY, y: window.innerWidth - touch.clientX };
             }
             return { x: touch.clientX, y: touch.clientY };
@@ -964,7 +967,7 @@
                 if(touch) {
                     const pos = getTouchXY(touch); 
                     let dx = pos.x - joyStart.x, dy = pos.y - joyStart.y;
-                    const maxR = 45; // 조작 가동 반경: 고정된 클래식 조이스틱으로 변경
+                    const maxR = 45; 
                     const dist = Math.hypot(dx, dy);
                     
                     if(dist > maxR) { 
@@ -972,7 +975,6 @@
                         dy = (dy / dist) * maxR;
                     }
                     
-                    // 데드존 추가 (손가락 떨림 방지)
                     if (dist < maxR * 0.15) {
                         joyX = 0; joyY = 0;
                     } else {
@@ -1006,10 +1008,9 @@
                 const dx = pos.x - lastLook.x, dy = pos.y - lastLook.y;
                 lastLook.x = pos.x; lastLook.y = pos.y;
                 
-                // 모바일 최적화: Three.js의 Euler를 사용해 짐벌락 없이 부드럽게 시야 조작
                 const euler = new THREE.Euler(0, 0, 0, 'YXZ');
                 euler.setFromQuaternion(camera.quaternion);
-                euler.y -= dx * 0.006; // 감도 상향
+                euler.y -= dx * 0.006;
                 euler.x -= dy * 0.006;
                 euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x));
                 camera.quaternion.setFromEuler(euler);
@@ -1082,7 +1083,6 @@
                             const mesh = createSDMesh(0xc62828, false, isMobile?1.2:1); 
                             mesh.position.set(px,0,pz); scene.add(mesh); 
                             mesh.userData={team:'enemy',stun:0,root:0, originPos: new THREE.Vector3(px,0,pz), wanderDir: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize()};
-                            // 밸런스: 플레이어 속도가 절반이 됐으므로 적 속도도 14로 낮춤
                             enemies.push({type:'normal',mesh,hp:60,maxHp:60,state:'patrol',team:'enemy',speed:14,attackT:0,strafeDir:1,strafeTimer:0,revealedTimer:0, skillTimer: 5 + Math.random()*5, isShielded: false, shieldDuration: 0});
                             totalEnemies++;
                         } else if(val === 4) {
@@ -1251,6 +1251,7 @@
             playSound('hit');
         }
 
+        // 🔥 AI 지능 업그레이드: 벽 타기 로직 추가
         function aiMove(entity, targetPos, delta, arriveRange, fleeRange, strafeMulti=0.8, isPatrol=false) {
             const dist = entity.mesh.position.distanceTo(targetPos);
             const dir = isPatrol ? entity.mesh.userData.wanderDir : targetPos.clone().sub(entity.mesh.position).normalize();
@@ -1277,8 +1278,28 @@
                 
                 if(wallHit){
                     entity.mesh.position.copy(oldPos);
-                    entity.strafeDir*=-1; entity.strafeTimer=1.0;
-                    if(isPatrol) entity.mesh.userData.wanderDir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                    
+                    // X축으로만 먼저 이동 시도
+                    let slideMvX = mv.clone(); slideMvX.z = 0;
+                    entity.mesh.position.add(slideMvX);
+                    aiBox.setFromCenterAndSize(entity.mesh.position.clone().add(new THREE.Vector3(0,3,0)), new THREE.Vector3(4,6,4));
+                    let hitX = collidableObjects.some(obj => obj.userData.isStatic && obj.userData.box3 && aiBox.intersectsBox(obj.userData.box3));
+                    
+                    if(hitX) {
+                        entity.mesh.position.copy(oldPos);
+                        // Z축으로만 이동 시도
+                        let slideMvZ = mv.clone(); slideMvZ.x = 0;
+                        entity.mesh.position.add(slideMvZ);
+                        aiBox.setFromCenterAndSize(entity.mesh.position.clone().add(new THREE.Vector3(0,3,0)), new THREE.Vector3(4,6,4));
+                        let hitZ = collidableObjects.some(obj => obj.userData.isStatic && obj.userData.box3 && aiBox.intersectsBox(obj.userData.box3));
+                        
+                        // 양쪽 다 막힌 코너면 방향 반전
+                        if(hitZ) {
+                            entity.mesh.position.copy(oldPos);
+                            entity.strafeDir*=-1; entity.strafeTimer=1.0;
+                            if(isPatrol) entity.mesh.userData.wanderDir = new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                        }
+                    }
                 } else {
                     if(entity.mesh.children[0]) entity.mesh.children[0].rotation.z=Math.sin(performance.now()*0.01)*0.08;
                 }
@@ -1286,14 +1307,28 @@
             return dist;
         }
 
-        function aiShoot(entity, targetPos, ownerTeam, color, dmg, cooldown, delta, isSniper=false) {
+        // 🔥 AI 지능 업그레이드: 예측 리드샷 추가
+        function aiShoot(entity, targetPos, ownerTeam, color, dmg, cooldown, delta, isSniper=false, targetVelocity=null) {
             entity.attackT-=delta;
             if(entity.attackT<=0) {
                 const spawnPos=entity.mesh.position.clone().add(new THREE.Vector3(0,3,0));
-                const shootDir=targetPos.clone().sub(spawnPos).normalize();
-                if(!isSniper) { shootDir.x+=(Math.random()-0.5)*0.04; shootDir.z+=(Math.random()-0.5)*0.04; }
+                let shootTarget = targetPos.clone();
+
+                if (targetVelocity && (targetVelocity.x !== 0 || targetVelocity.z !== 0)) {
+                    const dist = spawnPos.distanceTo(targetPos);
+                    const bulletSpeed = isSniper ? 240 : 120;
+                    const travelTime = dist / bulletSpeed; 
+                    shootTarget.x += (targetVelocity.x * travelTime * 0.8);
+                    shootTarget.z += (targetVelocity.z * travelTime * 0.8);
+                }
+
+                const shootDir=shootTarget.sub(spawnPos).normalize();
+                
+                if(!isSniper) { shootDir.x+=(Math.random()-0.5)*0.025; shootDir.z+=(Math.random()-0.5)*0.025; }
+                
                 fireBullet(spawnPos,shootDir,ownerTeam,color,dmg, isSniper?240:120, isSniper?'sniper':'rifle');
-                entity.attackT=cooldown+Math.random()*0.8; entity.revealedTimer = 3.0; 
+                entity.attackT=cooldown+Math.random()*0.4; 
+                entity.revealedTimer = 3.0; 
             }
         }
 
@@ -1484,7 +1519,7 @@
                 a.strafeTimer-=delta; if(a.strafeTimer<=0){a.strafeDir*=-1;a.strafeTimer=1.5+Math.random()*2;}
                 let target=null,minD=Infinity; enemies.forEach(e=>{ const d=a.mesh.position.distanceTo(e.mesh.position); if(d<minD && checkLOS(a.mesh.position, e.mesh.position)){minD=d;target=e;} });
                 if(target) { a.mesh.lookAt(target.mesh.position.x,0,target.mesh.position.z); aiMove(a,target.mesh.position,delta,40,15,0.7);
-                    if(minD<80) aiShoot(a,target.mesh.position.clone().add(new THREE.Vector3(0,3,0)),'ally',0x00ffff,20,1.2,delta); }
+                    if(minD<80) aiShoot(a,target.mesh.position.clone().add(new THREE.Vector3(0,3,0)),'ally',0x00ffff,20,1.2,delta, false, null); }
             });
 
             if(boss&&boss.hp>0) {
@@ -1503,12 +1538,7 @@
                         boss.mesh.lookAt(camera.position.x,0,camera.position.z);
                         const dist=aiMove(boss,camera.position,delta,50,25,0.5);
                         if(dist<90) {
-                            boss.attackT-=delta;
-                            if(boss.attackT<=0) {
-                                const sp=boss.mesh.position.clone().add(new THREE.Vector3(0,5,0));
-                                fireBullet(sp, camera.position.clone().sub(sp).normalize(),'enemy',0xff00ff,22,140);
-                                boss.attackT=1.1; boss.revealedTimer=3.0; 
-                            }
+                            aiShoot(boss, camera.position, 'enemy', 0xff00ff, 22, 1.1, delta, false, velocity);
                         }
                         boss.summonT-=delta;
                         if(boss.summonT<=0&&enemies.length<14) {
@@ -1592,12 +1622,20 @@
                 } else if (e.state === 'retreat') {
                     const retreatPos = e.mesh.position.clone().add(e.mesh.position.clone().sub(targetPos).normalize().multiplyScalar(40));
                     e.mesh.lookAt(retreatPos.x, 0, retreatPos.z); aiMove(e, retreatPos, delta, 10, 0, 0); 
-                    if (Math.random() < 0.01) aiShoot(e, shootTarget, 'enemy', 0xffaa00, 5, 2.0, delta);
+                    if (Math.random() < 0.01) aiShoot(e, shootTarget, 'enemy', 0xffaa00, 5, 2.0, delta, false, targetIsPlayer ? velocity : null);
                 } else {
                     e.mesh.lookAt(targetPos.x,0,targetPos.z);
-                    if(e.type==='defend') { if(canSee && dist<110) aiShoot(e,shootTarget,'enemy',0xff0000,15,1.5,delta); } 
-                    else if(e.type==='sniper') { aiMove(e,targetPos,delta,120,60,0.4); if(canSee && dist<150) aiShoot(e,shootTarget,'enemy',0xffffff,28,3.2,delta,true); } 
-                    else { aiMove(e,targetPos,delta,32,14,0.8); if(canSee && dist<85) aiShoot(e,shootTarget,'enemy',0xff2222,12,2.0,delta); }
+                    if(e.type==='defend') { 
+                        if(canSee && dist<110) aiShoot(e,shootTarget,'enemy',0xff0000,15,1.5,delta, false, targetIsPlayer ? velocity : null); 
+                    } 
+                    else if(e.type==='sniper') { 
+                        aiMove(e,targetPos,delta,120,60,0.4); 
+                        if(canSee && dist<150) aiShoot(e,shootTarget,'enemy',0xffffff,28,3.2,delta,true, targetIsPlayer ? velocity : null); 
+                    } 
+                    else { 
+                        aiMove(e,targetPos,delta,32,14,0.8); 
+                        if(canSee && dist<85) aiShoot(e,shootTarget,'enemy',0xff2222,12,2.0,delta, false, targetIsPlayer ? velocity : null); 
+                    }
                 }
             });
 
